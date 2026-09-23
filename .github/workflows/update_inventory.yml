@@ -9,6 +9,9 @@ on:
 jobs:
   update-inventory:
     runs-on: ubuntu-latest
+    concurrency:
+      group: "inventory-update"
+      cancel-in-progress: false
     permissions:
       contents: write
 

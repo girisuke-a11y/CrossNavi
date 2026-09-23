@@ -66,72 +66,51 @@ def parse_quantity(text):
         return int(nums[0])
     return 0
 
+import time
+
 def fetch_real_inventory_data():
     """
-    Playwrightを用いた実際の優待クロスまとめサイトからの在庫データ取得
+    Playwrightを用いた実際の優待クロスまとめサイトからの個別銘柄データ取得。
+    当月・翌月の銘柄に絞って負荷を極小化する。
     """
     if not sync_playwright:
         print("[Scraping Warn] Playwrightがインストールされていません。")
         return None
         
-    scraped_data = {}
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-            page = context.new_page()
-            
-            # 例: 96ut.com等のクロス一覧ページ
-            url = "https://96ut.com/stock/cross.php"
-            page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            
-            # 一般的な表構造（tr / td）を解析
-            rows = page.query_selector_all("table tr")
-            for row in rows:
-                cols = row.query_selector_all("td, th")
-                if len(cols) < 5:
-                    continue
-                
-                # 想定: [0] 銘柄コード, [1] 銘柄名, [2] SBI, [3] 楽天 ...
-                code_text = cols[0].inner_text().strip()
-                if not re.match(r'^\d{4}$', code_text):
-                    continue
-                    
-                name_text = cols[1].inner_text().strip()
-                sbi_text = cols[2].inner_text().strip()
-                rakuten_text = cols[3].inner_text().strip()
-                
-                sbi_qty = parse_quantity(sbi_text)
-                rakuten_qty = parse_quantity(rakuten_text)
-                
-                scraped_data[code_text] = {
-                    "sbi": sbi_qty,
-                    "rakuten": rakuten_qty,
-                    "name": name_text
-                }
-                
-            browser.close()
-            
-        if not scraped_data:
-            print("[Scraping Warn] 96ut: データが0件でした。")
-            return None
-            
-        print(f"[Scraping Info] 96ut: {len(scraped_data)} 銘柄の実データを抽出しました。")
-        return scraped_data
-    except Exception as e:
-        print(f"[Scraping Warn] 96ut: 取得に失敗しました: {e}")
+    master_list = load_master_stocks()
+    if not master_list:
+        print("[Scraping Warn] マスターデータが見つかりません。")
         return None
 
-def fetch_real_inventory_data_gokigen():
-    """
-    第二候補: Gokigen Life 等の別サイトからの在庫データ取得（Playwright使用）
-    """
-    if not sync_playwright:
-        return None
-        
+    # 当月と翌月を計算
+    now = datetime.now()
+    current_month = now.month
+    next_month = current_month + 1 if current_month < 12 else 1
+    target_months = {current_month, next_month}
+
+    # 対象銘柄を抽出
+    target_stocks = []
+    for item in master_list:
+        months = item.get("months", [])
+        if any(m in target_months for m in months):
+            code_str = str(item.get("code", ""))
+            if re.match(r'^\d{4}$', code_str):
+                target_stocks.append((code_str, item.get("name", "")))
+
+    if not target_stocks:
+        print("[Scraping Warn] 監視対象（当月・翌月）の銘柄が0件でした。")
+        return {}
+
+    print(f"[Scraping Info] 監視対象銘柄数: {len(target_stocks)}件 (対象月: {current_month}月, {next_month}月)")
+
     scraped_data = {}
+    
+    # 対象外の全銘柄も初期化しておく（アプリ側でエラーを出さないため）
+    for item in master_list:
+        code_str = str(item.get("code", ""))
+        if re.match(r'^\d{4}$', code_str):
+            scraped_data[code_str] = {"sbi": 0, "rakuten": 0, "name": item.get("name", "")}
+
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
@@ -140,24 +119,48 @@ def fetch_real_inventory_data_gokigen():
             )
             page = context.new_page()
             
-            # 汎用的な別サイトURL例
-            url = "https://gokigen-life.tokyo/"
-            page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            
-            # TODO: Gokigen Life等の実際のHTMLテーブルの構造に従って抽出
-            # ここではダミーとして処理をスキップし、将来の実装枠組みのみ提供します。
-            # （本来は表をクエリして scraped_data に詰めます）
-            
+            # 各銘柄に順番にアクセス
+            for code, name in target_stocks:
+                url = f"https://96ut.com/stock/urizan.php?code={code}"
+                try:
+                    page.goto(url, timeout=20000, wait_until="domcontentloaded")
+                    
+                    # .kuro クラスのテーブル内の最初のデータ行を取得
+                    first_row = page.query_selector("table.kuro tbody tr.even")
+                    if not first_row:
+                        first_row = page.query_selector("table.kuro tbody tr.odd")
+
+                    if first_row:
+                        cols = first_row.query_selector_all("td")
+                        # 楽天(5列目/index 4), SBI(7列目/index 6) のテキストを取得
+                        if len(cols) >= 7:
+                            rakuten_text = cols[4].inner_text().strip()
+                            sbi_text = cols[6].inner_text().strip()
+                            
+                            sbi_qty = parse_quantity(sbi_text)
+                            rakuten_qty = parse_quantity(rakuten_text)
+                            
+                            scraped_data[code]["sbi"] = sbi_qty
+                            scraped_data[code]["rakuten"] = rakuten_qty
+                            
+                            print(f"[Fetch OK] {code} {name}: SBI={sbi_qty}, Rakuten={rakuten_qty}")
+                        else:
+                            print(f"[Fetch Warn] {code} {name}: カラム不足")
+                    else:
+                        print(f"[Fetch Warn] {code} {name}: テーブル行が見つかりません")
+                        
+                except Exception as inner_e:
+                    print(f"[Fetch Error] {code} {name} の取得失敗: {inner_e}")
+
+                # 相手サーバーへの負荷軽減のための待機
+                time.sleep(1.0)
+                
             browser.close()
             
-        if not scraped_data:
-            print("[Scraping Warn] GokigenLife: データが0件でした。")
-            return None
-            
-        print(f"[Scraping Info] GokigenLife: {len(scraped_data)} 銘柄の実データを抽出しました。")
+        print(f"[Scraping Info] 96ut: {len(target_stocks)} 件の監視対象銘柄の巡回が完了しました。")
         return scraped_data
     except Exception as e:
-        print(f"[Scraping Warn] GokigenLife: 取得に失敗しました: {e}")
+        print(f"[Scraping Warn] 96ut巡回全体でエラー発生: {e}")
         return None
 
 def load_master_stocks():
@@ -178,7 +181,7 @@ def load_master_stocks():
 
 
 def generate_inventory_json(output_path=OUTPUT_FILE):
-    """全1,350銘柄の一般信用在庫JSONを生成"""
+    """全1,350銘柄の一般信用在庫JSONを生成（当月・翌月のみ実データ取得）"""
     now_str = datetime.now().strftime("%Y/%m/%d %H:%M")
 
     stocks_obj = {}
@@ -193,17 +196,10 @@ def generate_inventory_json(output_path=OUTPUT_FILE):
         source = "96ut.com"
         status = "success"
     else:
-        # 第二候補: Gokigen Life
-        real_data_gokigen = fetch_real_inventory_data_gokigen()
-        if real_data_gokigen:
-            stocks_obj = real_data_gokigen
-            source = "gokigen-life.tokyo"
-            status = "success"
-        else:
-            # 取得失敗時はエラーを記録し、空データを返す（疑似データ生成を廃止）
-            status = "error"
-            error_message = "All scrapers failed to fetch real inventory data."
-            stocks_obj = {}
+        # 取得失敗時はエラーを記録し、空データを返す
+        status = "error"
+        error_message = "All scrapers failed to fetch real inventory data."
+        stocks_obj = {}
 
     payload = {
         "updatedAt": now_str,
