@@ -173,7 +173,7 @@ def load_master_stocks():
     for p in possible_paths:
         if os.path.exists(p):
             try:
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, "r", encoding="utf-8-sig") as f:
                     return json.load(f)
             except Exception as e:
                 print(f"[Warn] {p} load error: {e}")
