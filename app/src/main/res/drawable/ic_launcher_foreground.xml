@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. クロスライン1: 左下から右上へ（現物買・上昇を象徴するシアン〜エメラルドグリーン） -->
+    <path
+        android:pathData="M30,78 L78,30"
+        android:strokeWidth="10"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="30"
+                android:startY="78"
+                android:endX="78"
+                android:endY="30"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00E5FF" />
+                <item android:offset="1.0" android:color="#10B981" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 2. クロスライン2: 右下から左上へ（信用売・ヘッジを象徴するゴールド〜アンバー） -->
+    <path
+        android:pathData="M78,78 L30,30"
+        android:strokeWidth="10"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="78"
+                android:startY="78"
+                android:endX="30"
+                android:endY="30"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#F59E0B" />
+                <item android:offset="1.0" android:color="#FCD34D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3. 中央の優待ギフトエンブレムの背景サークル (深みとコントラスト) -->
+    <path
+        android:pathData="M54,54m-16,0a16,16 0 1,1 32,0a16,16 0 1,1 -32,0"
+        android:fillColor="#0F172A" />
+
+    <!-- サークルのゴールド境界線 -->
+    <path
+        android:pathData="M54,54m-16,0a16,16 0 1,1 32,0a16,16 0 1,1 -32,0"
+        android:strokeWidth="2"
+        android:strokeColor="#FFD54F"
+        android:fillColor="#00000000" />
+
+    <!-- 4. ギフト（株主優待）ボックス本体 -->
+    <!-- ボックス下部 (シアンブルー) -->
+    <path
+        android:pathData="M44,52 h20 v12 c0,2 -2,4 -4,4 h-12 c-2,0 -4,-2 -4,-4 z"
+        android:fillColor="#38BDF8" />
+
+    <!-- ボックス上蓋 (ホワイトゴールド) -->
+    <path
+        android:pathData="M42,48 h24 v4 h-24 z"
+        android:fillColor="#F1F5F9" />
+
+    <!-- ギフトのリボン縦ライン (ゴールド) -->
+    <path
+        android:pathData="M52,48 h4 v20 h-4 z"
+        android:fillColor="#F59E0B" />
+
+    <!-- ギフトのリボン結び目 (上部の蝶結び) -->
+    <path
+        android:pathData="M50,45 C48,42 45,43 46,46 C47,48 52,47 52,47 Z"
+        android:fillColor="#FBBF24" />
+    <path
+        android:pathData="M58,45 C60,42 63,43 62,46 C61,48 56,47 56,47 Z"
+        android:fillColor="#FBBF24" />
+    <path
+        android:pathData="M54,46m-2,0a2,2 0 1,1 4,0a2,2 0 1,1 -4,0"
+        android:fillColor="#F59E0B" />
+
+    <!-- 5. 右上のきらめきスター (★) -->
+    <path
+        android:pathData="M74,26 L75.5,29.5 L79,31 L75.5,32.5 L74,36 L72.5,32.5 L69,31 L72.5,29.5 Z"
+        android:fillColor="#FDE047" />
+
+    <!-- 左下の小さなきらめき -->
+    <path
+        android:pathData="M34,74 L35,76 L37,77 L35,78 L34,80 L33,78 L31,77 L33,76 Z"
+        android:fillColor="#67E8F9" />
+</vector>
